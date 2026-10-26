@@ -1,113 +1,86 @@
 # ResearchBuoy11
 
-**AI Seafloor Stability Monitoring for Critical Infrastructure**
+**AI-assisted seafloor observation — software-only prototype**  
+Physical AI track concept · Nebius × NVIDIA Global AI Hackathon
 
-Track: **Physical AI** · Nebius Global AI Hackathon
+ResearchBuoy11 is a proposed low-cost, solar-powered ocean research buoy designed to monitor changes near subsea cables and pipelines. The **current prototype does not include a physical buoy, underwater camera, NVIDIA Cosmos-generated imagery, or Nebius Serverless Jobs**. It uses **deterministic, procedurally generated illustrative seafloor frames** to demonstrate change detection, followed by **real NVIDIA Nemotron 3 Super inference through Nebius Token Factory** if a user supplies an API key.
 
-🎥 **Demo video:** [YouTube link here]
-📄 **License:** MIT (see [LICENSE](LICENSE))
+This distinction matters: a detected difference between two illustrations is **not** a validated geotechnical hazard, marine sensor reading, or physical AI field test.
 
-> **Note on hardware:** This project has **no physical hardware component**. The buoy is a design concept. The demo video shows the **key application modules in action**, using synthetic seafloor footage in place of a real underwater camera.
+## What's implemented
 
----
+- Two synthetic camera-frame illustrations, including stable, sediment displacement, and cable-adjacent change examples.
+- Programmatic change detection (mean per-pixel RGB difference), a visible bounding rectangle, and measurable changed area.
+- Optional **live** `nvidia/nemotron-3-super-120b-a12b` text reasoning over the measured observation through Nebius Token Factory's OpenAI-compatible `/chat/completions` API.
+- Optional Tavily regional public-search results used as **supplementary context**, never as proof that something happened in the simulated frame.
+- Interactive Streamlit interface suitable for a screen-recorded software demonstration.
 
-## What it is
+## Architecture
 
-ResearchBuoy11 is a concept for a low-cost, solar-powered research buoy that monitors seafloor stability near subsea cables and pipelines. A surface buoy is tethered to a seafloor pod equipped with underwater cameras and LED lighting. On a set schedule, the pod lights the seafloor for a short period, captures images, and sends them up the tether for AI analysis.
-
-Its mission is neutral, fact-finding research: detecting early signs of sediment shift, erosion, or slope movement before they become costly failures.
-
-## Why we built it
-
-Undersea cables and pipelines carry much of the world's data and energy, and damage to this infrastructure is increasingly in the news. Seafloor instability is one of the quieter causes of that damage, yet most stretches of seafloor are rarely observed. We wanted a simple, affordable way to watch them continuously and turn raw images into clear findings that operators, scientists, and governments can act on.
-
-## How it works
-
-The demo runs five application modules end to end:
-
-```
-Synthetic footage  →  Vision analysis  →  Reasoning agent  →  Real-world context  →  Dashboard
- (NVIDIA Cosmos)       (batch job)         (Nemotron)          (Tavily API)           (alerts)
-```
-
-1. **Synthetic sensor data** – NVIDIA Cosmos generates realistic underwater seafloor footage, including normal scenes and scenes showing instability, running on Nebius Serverless Jobs. This stands in for the buoy's camera.
-2. **Vision analysis** – each simulated capture cycle is processed as a batch job that flags visual changes between images.
-3. **Reasoning agent** – NVIDIA Nemotron, served through Nebius Token Factory, reviews the flagged changes, judges whether they matter, and writes a plain-language alert or report.
-4. **Real-world context** – the agent uses the Tavily search API to check for recent earthquakes, storms, or reported incidents near the site and adds them to the alert.
-5. **Dashboard** – alerts and images appear in a simple dashboard for operators and researchers.
-
-## How we used NVIDIA and Nebius
-
-| Tool | How it's used in ResearchBuoy11 |
-|---|---|
-| **NVIDIA Nemotron** | Reasoning agent that interprets flagged changes and writes alerts |
-| **NVIDIA Cosmos** | Generates synthetic underwater seafloor footage for testing and the demo |
-| **Nebius Token Factory** | Serves Nemotron for the agent. [Add 1–2 sentences on how Token Factory sped up your work, e.g. no model setup, fast API access.] |
-| **Nebius Serverless Jobs** | Runs synthetic data generation and batch image analysis |
-| **Tavily API** (third party) | Web search for real-world context such as earthquakes and storms |
-
-## Setup and running
-
-### Requirements
-
-- Python 3.10 or newer
-- A Nebius account with Token Factory access
-- A Tavily API key
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/[your-username]/ResearchBuoy11.git
-cd ResearchBuoy11
+```text
+Synthetic illustrated frames (NumPy / Pillow; NOT Cosmos)
+     ↓
+Pixel-difference analysis in Python
+     ↓
+Measured observations (changed area and bounding rectangle)
+     ↓
+NVIDIA Nemotron 3 Super via Nebius Token Factory (real API, with key)
+     ↓
+Operator-facing simulated-observation report
 ```
 
-### 2. Create a virtual environment and install dependencies
+Tavily may supply additional regional context. No autonomous scheduling, physical sensors, hosted NVIDIA Cosmos execution, Nebius Serverless Jobs, or GPU instances are implemented in this MVP. These are possible **future development directions**, not shipped functionality.
+
+## Quick start
+
+Requires Python 3.10+.
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate        # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # On Windows: .venv\\Scripts\\activate
 pip install -r requirements.txt
+streamlit run app.py
 ```
 
-### 3. Add your API keys
+Open the local address that Streamlit prints (usually http://localhost:8501).
 
-Create a file named `.env` in the project folder:
+1. Select `Sediment displacement` and click **Run image comparison**. See the bounding rectangle and measured change.
+2. Enter a Nebius Token Factory API key into the sidebar and click **Generate a real Nemotron report**. This makes a paid/usage-metered API request, depending on your Nebius account.
+3. Optionally enter a region and Tavily key to append public-search context to the real model request.
+4. Try `Stable seabed` and compare how the reported measurement changes.
 
-```
-NEBIUS_API_KEY=your_nebius_key_here
-TAVILY_API_KEY=your_tavily_key_here
-```
-
-The `.env` file is listed in `.gitignore`, so your keys are never uploaded.
-
-### 4. Run the demo
+To use environment variables rather than entering keys in the UI:
 
 ```bash
-python [main_file_name].py
+export NEBIUS_API_KEY="your_key"
+export NEBIUS_BASE_URL="https://api.tokenfactory.us-central1.nebius.com/v1"
+export NEBIUS_MODEL="nvidia/nemotron-3-super-120b-a12b"
+export TAVILY_API_KEY="optional_key"
 ```
 
-[Describe what happens when it runs, e.g. "This processes the sample footage in `data/`, prints alerts in the terminal, and opens the dashboard at http://localhost:8501."]
+For Streamlit Community Cloud, deploy the GitHub repository with `app.py` as the entrypoint, and add `NEBIUS_API_KEY` (and optional `TAVILY_API_KEY`) through **app Secrets**. Never put credentials into source code, the README, or a screen recording.
 
-## Project structure
+## Repeatable tests
 
-```
-ResearchBuoy11/
-├── [folder or file]     # [what it does]
-├── [folder or file]     # [what it does]
-├── requirements.txt     # Python dependencies
-├── .gitignore
-├── LICENSE
-└── README.md
+```bash
+python -m unittest discover -s tests -v
 ```
 
-## What's next
+## Demonstration guidance (Physical AI track)
 
-Deploy a first prototype on the continental shelf (100–200 m), where many cables run and costs stay low, then scale the same design to deeper water.
+The hackathon requires a video under three minutes, with at least one minute of the **key application modules visibly operating** when there is no hardware. Screen-record the UI while changing scenarios, performing image comparison, and invoking a **real Nemotron API request**; never substitute a fabricated model response. Label the illustrations as simulations.
 
-## Hackathon note
+A live Nemotron call is required to demonstrate the model integration. The code and tests can run without credentials, but model inference cannot be tested without the user's API key.
 
-ResearchBuoy11 was created during the Nebius Global AI Hackathon submission period.
+For the Physical AI track, review the official rules carefully: the desired architecture also includes Nebius Serverless Jobs for simulations or scaled sensor processing. **Serverless Jobs and Cosmos are not implemented here**, so this MVP should not be described as satisfying all originally proposed track features.
+
+## Future work
+
+1. Generate more realistic synthetic seafloor imagery with NVIDIA Cosmos via supported Nebius infrastructure.
+2. Run image-analysis batches or simulations on Nebius Serverless Jobs.
+3. Introduce real camera captures from a tested tethered pod and validate image analysis against environmental data.
+4. Add secure historical monitoring, operator review, and scientifically validated thresholds before issuing operational alerts.
 
 ## License
 
-This project is released under the MIT License. See [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
